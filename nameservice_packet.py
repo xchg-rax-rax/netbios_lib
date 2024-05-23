@@ -1,13 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 import struct
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 from netbios_name import NetBIOSName
-
-
-class NameServicePackt:
-    pass
-
 
 class Opcode(Enum):
     QUERY = 0b0000
@@ -163,6 +158,18 @@ class NameServivceQuestionEntry:
         question_class = QuestionClass(question_class_ordinal)
         return cls(question_name, question_type, question_class)
 
+class ResourceRecordType(Enum):
+    AA = 0x0001
+    NS = 0x0002
+    NULL = 0x000A
+    NB = 0x0020
+    NBSTAT = 0x0021
+
+
+class ResourceRecordClass(Enum):
+    IN = 0x0001
+
+    
 @dataclass
 class NameServivceResourceRecord:
     """
@@ -170,7 +177,7 @@ class NameServivceResourceRecord:
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                                                               |
-   /                            RR_NAME a                          /
+   /                            RR_NAME                            /
    /                                                               /
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -185,3 +192,39 @@ class NameServivceResourceRecord:
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     """
+    rr_name: NetBIOSName
+    rr_type: ResourceRecordType
+    rr_class: ResourceRecordClass
+    ttl: int
+    rd_length: int
+    r_data: bytes # PROVISIONAL
+    
+    def pack(self) -> bytes:
+        rr_name_bytes: bytes = self.rr_name.encoded_netbios_name
+        rr_type_bytes: bytes = struct.pack("!H", self.rr_type.value)
+        rr_class_bytes: bytes = struct.pack("!H", self.rr_class.value)
+        ttl_bytes = struct.pack("!Q", self.rr_class.value)
+        rd_length_bytes: bytes = struct.pack("!H", self.rd_length)
+        return rr_name_bytes + rr_type_bytes + rr_class_bytes + ttl_bytes + rd_length_bytes + self.r_data
+
+    @classmethod
+    def unpack(cls, data: bytes) -> 'NameServivceResourceRecord':
+        assert False
+        return cls()
+
+@dataclass
+class NameServicePackt:
+    header: NameServicePacketHeader
+    question_entries: List[NameServivceQuestionEntry]
+    answer_resource_records: List[NameServivceResourceRecord]
+    authority_resource_records: List[NameServivceResourceRecord]
+    additional_resource_records: List[NameServivceResourceRecord]
+
+    def pack(self) -> bytes:
+        assert False
+        return b''
+
+    @classmethod
+    def unpack(cls, data: bytes) -> 'NameServicePackt':
+        assert False
+        return cls()
