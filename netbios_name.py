@@ -2,6 +2,7 @@ from typing import List, Optional
 from dataclasses import dataclass
 import struct
 
+# This should be refactored to be more similar to the other serializable dataclasses
 @dataclass
 class NetBIOSName:
     encoded_netbios_name: bytes
