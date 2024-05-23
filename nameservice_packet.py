@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 import struct
 from typing import Tuple, Any
+from netbios_name import NetBIOSName
 
 
 class NameServicePackt:
@@ -121,21 +122,66 @@ class NameServicePacketHeader:
         rcode = RCode(data >> 12)
         return (r, opcode, nm_flags, rcode)
 
+class QuestionType(Enum):
+    NB = 0x0020  # NetBIOS general Name Service Resource Record
+    NBSTAT = 0x0021  # NetBIOS NODE STATUS Resource Record
 
+class QuestionClass(Enum):
+    IN = 0x0001  # Internet Class
+
+@dataclass
 class NameServivceQuestionEntry:
-    pass
+    """
+                        1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   /                         QUESTION_NAME                         /
+   /                                                               /
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |         QUESTION_TYPE         |        QUESTION_CLASS         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    """
+    question_name: NetBIOSName
+    question_type: QuestionType
+    question_class: QuestionClass
 
+    def pack(self) -> bytes:
+        question_name_bytes: bytes = self.question_name.encoded_netbios_name
+        question_type_bytes: bytes = struct.pack('!H', self.question_type.value)
+        question_class_bytes: bytes = struct.pack('!H', self.question_class.value)
+        return question_name_bytes + question_type_bytes + question_class_bytes
 
-class NameServivceAnswerResourceRecord:
-    def __init__(self):
-        pass
+    @classmethod
+    def unpack(cls, data: bytes) -> 'NameServivceQuestionEntry':
+        question_name_bytes = data[:-4]
+        question_name = NetBIOSName(question_name_bytes)
+        question_type_ordinal, = struct.unpack('!H', data[-4:-2])
+        question_type = QuestionType(question_type_ordinal)
+        question_class_ordinal, = struct.unpack('!H', data[-2:])
+        question_class = QuestionClass(question_class_ordinal)
+        return cls(question_name, question_type, question_class)
 
-
-class NameServivceAuthorityResourceRecord:
-    def __init__(self):
-        pass
-
-
-class NameServivceAdditionalResourceRecord:
-    def __init__(self):
-        pass
+@dataclass
+class NameServivceResourceRecord:
+    """
+                        1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   /                            RR_NAME a                          /
+   /                                                               /
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |           RR_TYPE             |          RR_CLASS             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                              TTL                              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |           RDLENGTH            |                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+   /                                                               /
+   /                             RDATA                             /
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    """
