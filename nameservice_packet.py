@@ -209,8 +209,19 @@ class NameServivceResourceRecord:
 
     @classmethod
     def unpack(cls, data: bytes) -> 'NameServivceResourceRecord':
-        assert False
-        return cls()
+        last_byte_of_rr_name_index: int = data.index(b'\x00')
+        rr_name_bytes: bytes = data[:last_byte_of_rr_name_index + 1]
+        rr_name = NetBIOSName(rr_name_bytes)
+        rr_type_bytes: bytes = data[last_byte_of_rr_name_index:last_byte_of_rr_name_index+2]
+        rr_type = ResourceRecordType(struct.unpack('!H', rr_type_bytes))
+        rr_class_bytes: bytes = data[last_byte_of_rr_name_index+2:last_byte_of_rr_name_index+4]
+        rr_class = ResourceRecordClass(struct.unpack('!H', rr_class_bytes))
+        ttl_class_bytes: bytes = data[last_byte_of_rr_name_index+4:last_byte_of_rr_name_index+8]
+        ttl: int = struct.unpack('!Q', ttl_class_bytes)[0]
+        rd_length_bytes: bytes = data[last_byte_of_rr_name_index+8:last_byte_of_rr_name_index+10]
+        rd_length: int = struct.unpack('!H', rd_length_bytes)[0]
+        r_data: bytes = data[last_byte_of_rr_name_index+10:]
+        return cls(rr_name, rr_type, rr_class, ttl, rd_length, r_data)
 
 @dataclass
 class NameServicePackt:
