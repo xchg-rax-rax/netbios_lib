@@ -8,13 +8,17 @@ class NetBIOSName:
     encoded_netbios_name: bytes
 
     @classmethod
-    def build_from_string(cls, netbios_name: str, scope_id: str) -> "NetBIOSName":
+    def build_from_string(cls, netbios_name: str, scope_id: Optional[str] = None) -> "NetBIOSName":
+        if len(netbios_name) > 16:
+            raise ValueError("NetBIOS names can be no more than 16 characters long.")
+        # Pad the name to 16 bytes with spaces
+        netbios_name += ' '*(16-len(netbios_name))
         first_level_encoded: str = cls.first_level_encode(netbios_name, scope_id)
         second_level_encoded: bytes = cls.second_level_encode(first_level_encoded)
         return cls(second_level_encoded)
 
     @staticmethod
-    def first_level_encode(netbios_name: str, scope_id: str) -> str:
+    def first_level_encode(netbios_name: str, scope_id: Optional[str] = None) -> str:
         encoded_name: str = ""
         for c in netbios_name:
             c_ord: int = ord(c)
@@ -22,7 +26,9 @@ class NetBIOSName:
             upper_nibble: int = (c_ord & 0xF0) >> 4
             encoded_name += chr(upper_nibble + ord("A"))
             encoded_name += chr(lower_nibble + ord("A"))
-        return encoded_name + "." + scope_id
+        if scope_id:
+            return encoded_name + "." + scope_id
+        return encoded_name
 
     @staticmethod
     def second_level_encode(domain_name: str) -> bytes:
